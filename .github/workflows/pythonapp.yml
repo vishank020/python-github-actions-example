@@ -12,8 +12,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - run: git fetch --prune --unshallow
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Fetch Git history
+        run: git fetch --prune --unshallow
       
       - name: Set up Python 3.11.5
         uses: actions/setup-python@v4
@@ -36,33 +39,42 @@ jobs:
           pip install bandit
           bandit -r .
       
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=$PYTHONPATH:$(pwd)/src" >> $GITHUB_ENV
+      
       - name: Test with pytest
         run: |
           pip install pytest
-          export PYTHONPATH=src
           pytest
-  
+
   docker:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
       
       - name: Build Docker Image
+        run: docker build -t my-python-app .
+
+      - name: Login to AWS ECR
+        env:
+          AWS_REGION: us-east-1
+          AWS_ECR_URL: ${{ secrets.AWS_ECR_URL }}
         run: |
-          docker build -t my-python-app .
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ECR_URL
       
-      - name: Push Docker Image to AWS ECR
+      - name: Tag and Push Docker Image
         run: |
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.AWS_ECR_URL }}
           docker tag my-python-app:latest ${{ secrets.AWS_ECR_URL }}/my-python-app:latest
           docker push ${{ secrets.AWS_ECR_URL }}/my-python-app:latest
-  
+
   deploy:
     needs: docker
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
       
       - name: Deploy to AWS ECS
         run: |
