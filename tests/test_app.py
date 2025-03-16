@@ -7,4 +7,5 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../s
 from src.app import index  # Import the function
 
 def test_index():
-    assert index() == "Hello, world! This is a Flask app running with CI/CD."
+    expected_output = "Hello, world! This is a Flask app running with CI/CD."
+    assert index() == expected_output
