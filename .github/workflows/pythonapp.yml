@@ -74,9 +74,24 @@ jobs:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCP_REGION: us-central1
         run: |
-          docker build -t us-central1-docker.pkg.dev/$GCP_PROJECT_ID/my-repo/my-python-app:latest .
-          docker push us-central1-docker.pkg.dev/$GCP_PROJECT_ID/my-repo/my-python-app:latest
-
+          set -e  # Exit immediately if a command fails
+          
+          if [ -z "$GCP_PROJECT_ID" ]; then 
+            echo "Error: GCP_PROJECT_ID is not set!" 
+            exit 1 
+          fi
+          
+          IMAGE_NAME="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/my-repo/my-python-app:latest"
+          
+          echo "Building Docker image: $IMAGE_NAME"
+          docker build -t $IMAGE_NAME .
+          
+          echo "Pushing Docker image to Artifact Registry..."
+          docker push $IMAGE_NAME
+          
+          echo "✅ Docker image successfully pushed: $IMAGE_NAME"
+      
+      
   deploy:
     needs: docker
     runs-on: ubuntu-latest
