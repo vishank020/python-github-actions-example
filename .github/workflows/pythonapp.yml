@@ -53,21 +53,25 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      
-      - name: Build Docker Image
-        run: docker build -t my-python-app .
 
-      - name: Login to AWS ECR
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Configure Docker for GCP Artifact Registry
+        run: gcloud auth configure-docker REGION-docker.pkg.dev
+
+      - name: Build and Push Docker Image
         env:
-          AWS_REGION: us-east-1
-          AWS_ECR_URL: ${{ secrets.AWS_ECR_URL }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_REGION: us-central1
         run: |
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ECR_URL
-      
-      - name: Tag and Push Docker Image
-        run: |
-          docker tag my-python-app:latest ${{ secrets.AWS_ECR_URL }}/my-python-app:latest
-          docker push ${{ secrets.AWS_ECR_URL }}/my-python-app:latest
+          docker build -t REGION-docker.pkg.dev/$GCP_PROJECT_ID/my-repo/my-python-app:latest .
+          docker push REGION-docker.pkg.dev/$GCP_PROJECT_ID/my-repo/my-python-app:latest
 
   deploy:
     needs: docker
@@ -75,11 +79,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      
-      - name: Deploy to AWS ECS
+
+      - name: Deploy to Google Cloud Run
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_REGION: us-central1
         run: |
-          aws ecs update-service --cluster my-cluster --service my-service --force-new-deployment
-  
+          gcloud run deploy my-python-app \
+            --image=REGION-docker.pkg.dev/$GCP_PROJECT_ID/my-repo/my-python-app:latest \
+            --platform=managed \
+            --region=$GCP_REGION \
+            --allow-unauthenticated
+
       - name: Send Slack Notification on Failure
         if: failure()
         uses: rtCamp/action-slack-notify@v2
