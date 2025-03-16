@@ -64,11 +64,9 @@ jobs:
 
       - name: Configure Docker for GCP Artifact Registry
         run: |
-          if [ -z "${{ secrets.GCP_REGION }}" ]; then 
-            echo "Error: GCP_REGION is not set!"
-            exit 1
-          fi
-          gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+          set -e  # Stop execution on error
+          echo "✅ Configuring Docker authentication for region: asia-south1"
+          gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet
 
       - name: Build and Push Docker Image
         env:
