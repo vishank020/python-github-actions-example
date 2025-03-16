@@ -8,44 +8,40 @@ on:
     branches:
       - master
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
+      
       - name: Fetch Git history
         run: git fetch --prune --unshallow
-
+      
       - name: Set up Python 3.11.5
         uses: actions/setup-python@v4
         with:
           python-version: 3.11.5
-
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
+      
       - name: Lint with flake8
         run: |
           pip install flake8
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-
+      
       - name: Security Scan with Bandit
         run: |
           pip install bandit
           bandit -r .
-
+      
       - name: Set PYTHONPATH
         run: echo "PYTHONPATH=$PYTHONPATH:$(pwd)/src" >> $GITHUB_ENV
-
+      
       - name: Test with pytest
         run: |
           pip install pytest
@@ -67,31 +63,25 @@ jobs:
         uses: google-github-actions/setup-gcloud@v1
 
       - name: Configure Docker for GCP Artifact Registry
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
 
       - name: Build and Push Docker Image
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          GCP_REGION: us-central1
+          GCP_REGION: ${{ secrets.GCP_REGION }}
         run: |
-          set -e  # Exit immediately if a command fails
-          
+          set -e
           if [ -z "$GCP_PROJECT_ID" ]; then 
             echo "Error: GCP_PROJECT_ID is not set!" 
             exit 1 
           fi
-          
-          IMAGE_NAME="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/my-repo/my-python-app:latest"
-          
+          IMAGE_NAME="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/my-repo/my-python-app:latest"
           echo "Building Docker image: $IMAGE_NAME"
           docker build -t $IMAGE_NAME .
-          
           echo "Pushing Docker image to Artifact Registry..."
           docker push $IMAGE_NAME
-          
           echo "✅ Docker image successfully pushed: $IMAGE_NAME"
-      
-      
+
   deploy:
     needs: docker
     runs-on: ubuntu-latest
@@ -99,18 +89,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Authenticate with Google Cloud
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
       - name: Deploy to Google Cloud Run
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          GCP_REGION: us-central1
+          GCP_REGION: ${{ secrets.GCP_REGION }}
         run: |
           gcloud run deploy my-python-app \
-            --image=us-central1-docker.pkg.dev/$GCP_PROJECT_ID/my-repo/my-python-app:latest \
+            --image=$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/my-repo/my-python-app:latest \
             --platform=managed \
             --region=$GCP_REGION \
             --allow-unauthenticated
