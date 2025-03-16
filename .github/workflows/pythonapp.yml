@@ -8,40 +8,44 @@ on:
     branches:
       - master
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      
+
       - name: Fetch Git history
         run: git fetch --prune --unshallow
-      
+
       - name: Set up Python 3.11.5
         uses: actions/setup-python@v4
         with:
           python-version: 3.11.5
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
+
       - name: Lint with flake8
         run: |
           pip install flake8
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-      
+
       - name: Security Scan with Bandit
         run: |
           pip install bandit
           bandit -r .
-      
+
       - name: Set PYTHONPATH
         run: echo "PYTHONPATH=$PYTHONPATH:$(pwd)/src" >> $GITHUB_ENV
-      
+
       - name: Test with pytest
         run: |
           pip install pytest
@@ -63,15 +67,15 @@ jobs:
         uses: google-github-actions/setup-gcloud@v1
 
       - name: Configure Docker for GCP Artifact Registry
-        run: gcloud auth configure-docker REGION-docker.pkg.dev
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
       - name: Build and Push Docker Image
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCP_REGION: us-central1
         run: |
-          docker build -t REGION-docker.pkg.dev/$GCP_PROJECT_ID/my-repo/my-python-app:latest .
-          docker push REGION-docker.pkg.dev/$GCP_PROJECT_ID/my-repo/my-python-app:latest
+          docker build -t us-central1-docker.pkg.dev/$GCP_PROJECT_ID/my-repo/my-python-app:latest .
+          docker push us-central1-docker.pkg.dev/$GCP_PROJECT_ID/my-repo/my-python-app:latest
 
   deploy:
     needs: docker
@@ -86,7 +90,7 @@ jobs:
           GCP_REGION: us-central1
         run: |
           gcloud run deploy my-python-app \
-            --image=REGION-docker.pkg.dev/$GCP_PROJECT_ID/my-repo/my-python-app:latest \
+            --image=us-central1-docker.pkg.dev/$GCP_PROJECT_ID/my-repo/my-python-app:latest \
             --platform=managed \
             --region=$GCP_REGION \
             --allow-unauthenticated
