@@ -47,5 +47,5 @@ Continuous deployment is a strategy for software releases wherein any code commi
   run: |
     git remote add heroku https://heroku:$HEROKU_API_TOKEN@git.heroku.com/$HEROKU_APP_NAME.git
     git push heroku HEAD:master -f
-
-![GitHub Workflow Status](https://github.com/{github username}/{repo name}/workflows/{workflow name}/badge.svg)
+```
+![GitHub Workflow Status](https://github.com/vishank20/python-github-actions-example/workflows/pythonapp.yml/badge.svg)
